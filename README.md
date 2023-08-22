@@ -1,2 +1,2 @@
 # pset
-A program for your annoying to add variables and functions to persist easily!
+A script for your annoying to add shell/environment variables and functions to persist easily!
