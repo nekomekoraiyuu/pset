@@ -32,6 +32,30 @@ check_inst () {
 			echo "1" && return
 	fi
 }
+check_path () {
+ideal_path="/usr/local/bin"
+if [ "$(grep -o ":" <<< "$PATH" | wc -l)" -lt 1 ];
+	then
+		ideal_path="$(cut -d ":" -f "1" <<< "$PATH")"
+	else
+		IFS=':'
+		for i in $PATH
+			do
+				local total_path=("$total_path" "$i")
+				if [ "$i" == "$ideal_path" ];
+					then
+						local ideal_path_exists="indeed"
+				fi
+			done
+		unset i
+		IFS=$'\n'
+		if [ "${ideal_path_exists:-doesnt_bwuh}" ];
+			then
+				ideal_path="$(fzf -s <<< "${total_path[*]}")" || exit 1
+				unset IFS
+		fi
+fi
+}
 # ------ MAIN
 # Relaunch script with required args
 if [ ! "${1}" == "--relaunch-args" ];
@@ -66,14 +90,20 @@ if [ ! "${1}" == "--relaunch-args" ];
 			do
 				if [ ! "$(command -v "$i")" ];
 					then
+						j=$((j+1))
 						echo -e "!>$i Is not installed!"
-						exit 2
+				fi
+				if [ "${#required_deps[@]}" -ne "$j" ];
+					then
+						echo '! Please install the required dependencies and re-execute the script!' && exit 2
 				fi
 			done
+		# Now lets invoke check path function
+		check_path
 		# Now Actually "install" the script
 		if [ "$install_type" == "local" ];
 			then
-				cp $CURSPATH/pset.sh /bin/pset
+				cp $CURSPATH/pset.sh $ideal_path
 			else
 			# To do
 				:
