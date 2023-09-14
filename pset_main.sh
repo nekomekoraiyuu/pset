@@ -8,7 +8,7 @@ CUR_PROC=$(ps -o comm= $PPID)
 SUPPORTED_SHELLS=(
 "bash"
 )
-PSETCONF="~/.config/pset"
+PSETCONF="$HOME/.config/pset"
 confdirs=(
 	"$PSETCONF"
 	"$PSETCONF/process_configs"
@@ -16,7 +16,7 @@ confdirs=(
 )
 setdir="${confdirs[@]:2:3}"
 procdir=(
-"$setdir/{current_vars,current_cmds,temp_restore}"
+$setdir/{current_vars,current_cmds,temp_restore}
 )
 # -- Functions
 printout () {
@@ -24,9 +24,11 @@ case ${1} in
 	-e | --error)
 		echo -e "${2}"
 		exit "${3:-"9"}"
+		;;
 	*)
 		echo "${FUNCNAME[0]}: invalid argument: ${1}!"
 		exit 6
+		;;
 esac
 }
 # Empty arg checking function
@@ -46,10 +48,19 @@ check_arg () {
 	fi
 }
 check_dir () {
-	# Create some files if they dont exist
+	# check if pset config dir exists
+	# if not then create a new config dir
+	for f in "${confdirs[@]}"
+		do
+			if [ ! -d "$f" ];
+				then
+					mkdir -p "$f"
+			fi
+		done
+		# Create some files if they dont exist
 	for i in "${procdir[@]}"
 		do
-			if [ -f "$i" ];
+			if [ ! -f "$i" ];
 				then
 					(cd "$setdir" && touch "${i##*/}")
 			fi
@@ -62,28 +73,23 @@ pset_set () {
 			then
 				sed -i "s/${varname}/${1}" "${procdir[@]:0:1}" 
 			else
+				# To do
+				:
 		fi
 }
 # check if current shell is in supported shell variables
-if [ ! "${SUPPORTED_SHELLS[@]}" =~ \b$CUR_PROC\b ];
+if [[ ! "${SUPPORTED_SHELLS[@]}" =~ (^| )${CUR_PROC}($| ) ]];
 	then
-		echo -e "\! Current process $CUR_PROC isn't in the supported shell list\!\nPlease make a git issue to add your shell to the supported list\~"
+		echo -e ">! Current process $CUR_PROC isn't in the supported shell list!\nPlease make a git issue to add your shell to the supported list~"
 		exit 1
 fi
-# check if pset config dir exists
-# if not then create a new config dir
-for f in "${confdirs[@]}"
-	do
-		if [ ! -d "$f" ];
-			then
-				mkdir -p "$f"
-		fi
-	done
+# Now check if files exist
+check_dir
 # -- MAIN
 # Parse arguments
-if [ "$#" -ge 1 ];
+if [ "$#" -ge 0 ];
 	then
-		for i in "$@"
+		for i in "${@:-"--help"}"
 			do
 				case $i in
 					-x | --set)
@@ -97,6 +103,15 @@ if [ "$#" -ge 1 ];
 							;;
 						esac
 						shift 1
+					;;
+			# --set arg end
+				-h | --help)
+				# Help command
+				 echo -e "PSET HELP"
+				 ;;
+				-* | --*)
+					echo -e "! Invalid argument! ${1}"
+				;;
 				esac
 			done
 fi
