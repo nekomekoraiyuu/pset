@@ -21,32 +21,20 @@ $setdir/{current_vars,current_cmds,temp_restore}
 # -- Functions
 printout () {
 case ${1} in
+	-i | --info)
+		echo -e "${2}" >&1
+	;;
 	-e | --error)
-		echo -e "${2}"
-		exit "${3:-"9"}"
+		echo -e "${2}" 1>&2
+		exit "${3:-"3"}"
 		;;
 	*)
-		echo "${FUNCNAME[0]}: invalid argument: ${1}!"
+		echo "${FUNCNAME[0]}: invalid argument: ${1}!" 1>&2
 		exit 6
 		;;
 esac
 }
 # Empty arg checking function
-check_arg () {
-	if [ ${1:-doesntexist} ];
-		then
-			if grep -qoP "${2}" <<< "${1}";
-				then
-					echo 0
-				else
-				# 2 is not match
-					echo 2
-			fi
-		else
-		# Arg empty
-			echo 1
-	fi
-}
 check_dir () {
 	# check if pset config dir exists
 	# if not then create a new config dir
@@ -67,15 +55,26 @@ check_dir () {
 		done
 }
 pset_set () {
+	# Check if arg empty
+		if [ -z "${1}" ];
+			then
+				printout -e "${0##*/}: ${FUNCNAME[0]}: Argument empty!"
+		fi
+	# Pattern checking
+	if ! grep -qoP '^[\w]+=.*' <<< "${1}";
+		then
+		 printout -e "${0##*/}: ${FUNCNAME[0]}: Invalid variable pattern!"
+	fi
 		# Uh need to remove some stuff first
-		local varname=$(grep -op '^[\w]+=.*' <<< "${1}")
+		local varname=$(grep -oP '^[\w]+=' <<< "${1}")
 		if grep -qo "${varname}" < "${procdir[@]:0:1}";
 			then
-				sed -i "s/${varname}/${1}" "${procdir[@]:0:1}" 
+				sed -i "s/^${varname}.*/${1}/" "${procdir[@]:0:1}" 
 			else
 				# To do
-				:
+				echo "${1}" >> "${procdir[@]:0:1}" 
 		fi
+		printout -i "${0##*/}: ${FUNCNAME[0]}: Set Successfull For: '${1}'!"
 }
 # check if current shell is in supported shell variables
 if [[ ! "${SUPPORTED_SHELLS[@]}" =~ (^| )${CUR_PROC}($| ) ]];
@@ -87,32 +86,21 @@ fi
 check_dir
 # -- MAIN
 # Parse arguments
-if [ "$#" -ge 0 ];
-	then
-		for i in "${@:-"--help"}"
-			do
-				case $i in
-					-x | --set)
-						# Argument check
-						case "$(check_arg "${2}" '^[\w]+=.*')" in
-							1)
-								printout -e "${0##*/}: ${1}: Argument empty\!"
-							;;
-							2)
-								printout -e "${0##*/}: ${1}: Invalid argument\!"
-							;;
-						esac
-						shift 1
-					;;
-			# --set arg end
-				-h | --help)
-				# Help command
-				 echo -e "PSET HELP"
-				 ;;
-				-* | --*)
-					echo -e "! Invalid argument! ${1}"
+for (( i = 0; i < $#; i += ${k:-2} ))
+	do
+		case "${@:i+1:i+1}" in
+			"-x" | "--set")
+				# Argument check
+					pset_set "${@:i+2}"
 				;;
-				esac
-			done
-fi
-
+		# --set arg end
+			-h | --help)
+			# Help command
+			 echo -e "PSET HELP"
+			 ;;
+			* | -* | --*)
+				echo -e "${0##*/}: Invalid argument: ${1}!"
+			;;
+			esac
+	#	fi
+	done
