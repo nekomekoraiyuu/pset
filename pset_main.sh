@@ -1,5 +1,13 @@
 #!/bin/bash --norc --noprofile
+# Enable extglob
+shopt -s extglob
 # -- variables
+### Color Variables please
+CRESET='\e[0m'
+CGREEN='\e[92m'
+CYELLOW='\e[93m'
+CRED='\e[91m'
+###
 # we need a ifs backup!
 IFSBAK="${IFS}"
 # IFS is a newline indeed
@@ -19,13 +27,17 @@ procdir=(
 $setdir/{current_vars,current_cmds,temp_restore}
 )
 # -- Functions
+#HELP!!!!!!!!
+pset_help () {
+	echo -e "PSET HELP (TODO)"
+}
 printout () {
 case ${1} in
 	-i | --info)
-		echo -e "${2}" >&1
+		echo -e "${CGREEN}${2}${CRESET}" >&1
 	;;
 	-e | --error)
-		echo -e "${2}" 1>&2
+		echo -e "${CYELLOW}${2}${CRESET}" 1>&2
 		exit "${3:-"3"}"
 		;;
 	*)
@@ -60,21 +72,25 @@ pset_set () {
 			then
 				printout -e "${0##*/}: ${FUNCNAME[0]}: Argument empty!"
 		fi
+		if grep -qoP '\b--include-quote\b' <<< "${EXTRA_ARGS[@]}";
+			then
+				local quoteincluded='"'
+		fi
 	# Pattern checking
 	if ! grep -qoP '^[\w]+=.*' <<< "${1}";
 		then
-		 printout -e "${0##*/}: ${FUNCNAME[0]}: Invalid variable pattern!"
+		 printout -e "${0##*/}: ${FUNCNAME[0]}: Invalid variable pattern: ${1}!"
 	fi
 		# Uh need to remove some stuff first
 		local varname=$(grep -oP '^[\w]+=' <<< "${1}")
 		if grep -qo "${varname}" < "${procdir[@]:0:1}";
 			then
-				sed -i "s/^${varname}.*/${1}/" "${procdir[@]:0:1}" 
+				sed -i "s/^${varname}.*/${quoteincluded:-}${1}${quoteincluded:-}/" "${procdir[@]:0:1}" 
 			else
 				# To do
-				echo "${1}" >> "${procdir[@]:0:1}" 
+				echo "${quoteincluded:-}${1}${quoteincluded:-}" >> "${procdir[@]:0:1}" 
 		fi
-		printout -i "${0##*/}: ${FUNCNAME[0]}: Set Successfull For: '${1}'!"
+		printout -i "${0##*/}: ${FUNCNAME[0]}: Set Successful For: '${1}'!"
 }
 # check if current shell is in supported shell variables
 if [[ ! "${SUPPORTED_SHELLS[@]}" =~ (^| )${CUR_PROC}($| ) ]];
@@ -85,18 +101,27 @@ fi
 # Now check if files exist
 check_dir
 # -- MAIN
+# Print Help Message If No args were specified
+if ! (( $# ));
+	then
+		pset_help
+fi
 # Parse arguments
 for (( i = 0; i < $#; i += ${k:-2} ))
 	do
 		case "${@:i+1:i+1}" in
-			"-x" | "--set")
+			-x?(q) | --set)
 				# Argument check
+					if grep -qoP "q" <<< "${@:i+1:i+1}";
+						then
+							EXTRA_ARGS+="--include-quote"
+					fi
 					pset_set "${@:i+2}"
 				;;
 		# --set arg end
 			-h | --help)
 			# Help command
-			 echo -e "PSET HELP"
+			 pset_help
 			 ;;
 			* | -* | --*)
 				echo -e "${0##*/}: Invalid argument: ${1}!"
