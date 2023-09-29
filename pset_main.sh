@@ -6,6 +6,7 @@ shopt -s extglob
 CRESET='\e[0m'
 CGREEN='\e[92m'
 CYELLOW='\e[93m'
+CYANN='\e[96m'
 CRED='\e[91m'
 ###
 # we need a ifs backup!
@@ -34,7 +35,7 @@ pset_help () {
 printout () {
 case ${1} in
 	-i | --info)
-		echo -e "${CGREEN}${2}${CRESET}" >&1
+		echo -e "${CYANN}${2}${CRESET}" >&1
 	;;
 	-e | --error)
 		echo -e "${CYELLOW}${2}${CRESET}" 1>&2
@@ -72,7 +73,7 @@ pset_set () {
 			then
 				printout -e "${0##*/}: ${FUNCNAME[0]}: Argument empty!"
 		fi
-		if grep -qoP '\b--include-quote\b' <<< "${EXTRA_ARGS[@]}";
+		if grep -qoP '(^|\s+)--include-quote($|\s+)' <<< "${EXTRA_ARGS[@]}";
 			then
 				local quoteincluded='"'
 		fi
@@ -83,12 +84,13 @@ pset_set () {
 	fi
 		# Uh need to remove some stuff first
 		local varname=$(grep -oP '^[\w]+=' <<< "${1}")
-		if grep -qo "${varname}" < "${procdir[@]:0:1}";
+		local delimname=$(grep -oP '(?<=\w=).*' <<< "${1}")
+		if grep -qoP "${varname}" < "${procdir[@]:0:1}";
 			then
-				sed -i "s/^${varname}.*/${quoteincluded:-}${1}${quoteincluded:-}/" "${procdir[@]:0:1}" 
+				sed -i "s/^${varname}.*/${varname}${quoteincluded:-}${delimname}${quoteincluded:-}/" "${procdir[@]:0:1}" 
 			else
 				# To do
-				echo "${quoteincluded:-}${1}${quoteincluded:-}" >> "${procdir[@]:0:1}" 
+				echo "${varname}${quoteincluded:-}${delimname}${quoteincluded:-}" >> "${procdir[@]:0:1}" 
 		fi
 		printout -i "${0##*/}: ${FUNCNAME[0]}: Set Successful For: '${1}'!"
 }
